@@ -1,15 +1,8 @@
 using UnityEngine;
 using System.Collections;
 
-public class TinyPaste : Singleton<TinyPaste>
+public class TinyPaste : MonoBehaviour
 {
-	#region Singleton<T> boilerplate
-	void Awake()
-	{
-		onAwake();
-	}
-	#endregion
-
 	protected const string _kTinyPasteAPI = "http://tny.cz/api";
 
 	public enum ResponseFormatType
