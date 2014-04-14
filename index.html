@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>UnityPaste by SteBeeGizmo</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/main.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+
+      <header>
+        <h1>UnityPaste</h1>
+        <p>A Unity3d utility class for pasting arbitrary text to the TinyPaste service (http://tny.cz)</p>
+      </header>
+
+      <div id="banner">
+        <span id="logo"></span>
+
+        <a href="https://github.com/SteBeeGizmo/UnityPaste" class="button fork"><strong>View On GitHub</strong></a>
+        <div class="downloads">
+          <span>Downloads:</span>
+          <ul>
+            <li><a href="https://github.com/SteBeeGizmo/UnityPaste/zipball/master" class="button">ZIP</a></li>
+            <li><a href="https://github.com/SteBeeGizmo/UnityPaste/tarball/master" class="button">TAR</a></li>
+          </ul>
+        </div>
+      </div><!-- end banner -->
+
+    <div class="wrapper">
+      <nav>
+        <ul></ul>
+      </nav>
+      <section>
+        <h2>
+<a name="unitypaste" class="anchor" href="#unitypaste"><span class="octicon octicon-link"></span></a>UnityPaste</h2>
+
+<h4>
+<a name="share-logs-and-other-text-online-from-within-unity" class="anchor" href="#share-logs-and-other-text-online-from-within-unity"><span class="octicon octicon-link"></span></a>Share logs and other text online from within Unity</h4>
+
+<p>It's very common to need to write text to disk from within Unity during development. You might have an editor mode that needs to save level information, or debugging code that needs to dump information to a log file. Writing a text file is easy enough to do, but accessing that file can be inconvenient, especially with mobile device builds. It'd also be handy to have all your log files aggregated in one place.</p>
+
+<p>The UnityPaste component solves this problem by writing text not to a file on the device but to the <a href="http://tny.cz">TinyPaste</a> web service. There are a number of competitors to TinyPaste--Pastebin being the oldest and most famous--but I found TinyPaste's API to be the easiest to call from a Unity context. The unique feature of "paste" services like TinyPaste and Pastebin is that they are anonymous and lightweight, relying on obscurity to provide privacy. When you paste text to these services, you get a cryptic URL back like <a href="http://tny.cz/fc82a18e">http://tny.cz/fc82a18e</a>. Lose that URL, and the text is lost for good! TinyPaste offers an authenticated mode that gives you a list on demand of all your pastes.</p>
+
+<p>Note that this code will not work in a webplayer build, due to the cross-domain security model. (TinyPaste has no crossdomain.xml at their root.)</p>
+
+<h3>
+<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h3>
+
+<ol>
+<li> Attach the TinyPaste component to an object in your scene. (If you're using a singleton framework such as <a href="http://stebeegizmo.github.io/Singleton/">mine</a>, TinyPaste is an excellent candidate for turning into a singleton instance.)</li>
+<li> If desired, fill in your TinyPaste username and password in the object's fields. As discussed above, you don't have to do this, but if you don't, the only way you'll find your pasted files again is by capturing their URLs returned from the service.</li>
+<li> Call <code>Create(body, title, callback)</code>, where <code>body</code> is the text to paste and <code>title</code> is an optional title for the pasted page. The <code>callback</code> value can either be a <code>GameObject</code> or a delegate method:
+
+<ul>
+<li>If you pass in a <code>GameObject</code>, then when the request is complete the component will call <code>SendMessage</code> on your object, calling the <code>OnTinyPasteSucceeded</code> method if successful or <code>OnTinyPasteFailed</code> if not. You can override these by passing in your own function names after the reference to your object--for example, if you want the methods to be <code>PasteGood</code> and <code>PasteBad</code> instead then call <code>Create(body, title, yourObject, "PasteGood", "PasteBad")</code>.</li>
+<li>You can pass in an instance of the <code>TinyPasteResponse(string response, string error)</code> delegate.</li>
+<li>You can use a lambda to pass in an anonymous handler:
+<code>Create(body, title, (response, error) =&gt; { if (string.IsNullOrEmpty(error)) Debug.Log(response); }</code>
+</li>
+<li>Or you can choose not to provide a callback at all, in which case the request is "fire and forget"--you won't know whether it succeeded. This only makes sense if you've provided a username and password, since otherwise you won't have any way to go back and find the data you pasted.</li>
+</ul>
+</li>
+<li> On success, your callback receives the response from TinyPaste. The format will be JSON, but you can request XML instead by setting the component's <code>ResponseFormat</code> property. <em>It is up to you to parse the response,</em> because I didn't want to pre-judge what JSON parsing package you're using.</li>
+</ol><h4>
+<a name="example" class="anchor" href="#example"><span class="octicon octicon-link"></span></a>Example</h4>
+
+<p>This example assumes you're using Matt Schoen's <a href="http://wiki.unity3d.com/index.php?title=JSONObject">JSONObject</a> parser.</p>
+
+<div class="highlight highlight-csharp"><pre><span class="k">public</span> <span class="n">TinyPaste</span> <span class="n">TPComponent</span><span class="p">;</span>
+
+<span class="k">void</span> <span class="nf">onPasteComplete</span><span class="p">(</span><span class="kt">string</span> <span class="n">response</span><span class="p">,</span> <span class="kt">string</span> <span class="n">error</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">error</span><span class="p">))</span>
+    <span class="n">Debug</span><span class="p">.</span><span class="n">LogWarning</span><span class="p">(</span><span class="n">error</span><span class="p">);</span>
+  <span class="k">else</span>
+  <span class="p">{</span>
+        <span class="n">JSONObject</span> <span class="n">json</span> <span class="p">=</span> <span class="k">new</span> <span class="n">JSONObject</span><span class="p">(</span><span class="n">response</span><span class="p">);</span>
+        <span class="c1">// Response will look like {"result":{"response":"fc82a18e"}}</span>
+
+        <span class="kt">string</span> <span class="n">id</span> <span class="p">=</span> <span class="n">json</span><span class="p">[</span><span class="s">"result"</span><span class="p">][</span><span class="s">"response"</span><span class="p">].</span><span class="n">str</span><span class="p">;</span>
+        <span class="n">Debug</span><span class="p">.</span><span class="n">Log</span><span class="p">(</span><span class="s">"Your paste can be found at http://tny.cz/"</span> <span class="p">+</span> <span class="n">id</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">void</span> <span class="nf">doPasteTest</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">TPComponent</span><span class="p">.</span><span class="n">Username</span> <span class="p">=</span> <span class="s">"MyUsername"</span><span class="p">;</span>
+  <span class="n">TPComponent</span><span class="p">.</span><span class="n">Password</span> <span class="p">=</span> <span class="s">"12345isthecombinationonmyluggage"</span><span class="p">;</span>
+  <span class="n">TPComponent</span><span class="p">.</span><span class="n">Create</span><span class="p">(</span><span class="s">"This is a test paste"</span><span class="p">,</span> <span class="s">"Test Paste"</span><span class="p">,</span> <span class="n">onPasteComplete</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<h4>
+<a name="other-methods" class="anchor" href="#other-methods"><span class="octicon octicon-link"></span></a>Other Methods</h4>
+
+<p>The component provides simple access to the rest of the TinyPaste API as well:</p>
+
+<ul>
+<li>
+<code>Get(id, callback)</code>: Fetch the paste with the specified ID.</li>
+<li>
+<code>List(callback)</code>: Fetch a list of all your pastes. Requires username and password to be set.</li>
+<li>
+<code>Delete(id, callback)</code>: Delete the paste with the specied ID. Requires username and password to be set.</li>
+<li>
+<code>Edit(id, body, title, callback)</code>: Replace the specified paste. Requires username and password to be set.</li>
+<li>
+<code>Raw(method, form, callback)</code>: Allows you to compose your own request, giving you access to <a href="http://tny.cz/api/doc/">the full TinyPaste API</a>. Parameters are passed in in the form of a <code>WWWForm</code> object.</li>
+</ul><h3>
+<a name="room-for-improvement" class="anchor" href="#room-for-improvement"><span class="octicon octicon-link"></span></a>Room for Improvement</h3>
+
+<p>There's lots of opportunity to make this code more useful:</p>
+
+<ul>
+<li>I didn't want to bog this code down with dependency on a JSON library... but if I did, <a href="http://wiki.unity3d.com/index.php?title=JSONObject">JSONObject</a> is the one I'd pick. Parsing the server response here in this code would let me provide a higher-level API.</li>
+<li>The choice of TinyPaste as the backing service was fairly arbitrary. Its two key features are optional authentication (so that I can just write to the service without having to report the paste ID back to the user), and an auth model that did not require cookies (which are not well supported in the WWW class). I'd be happy to entertain other services that shared these attributes.</li>
+</ul>
+      </section>
+      <footer>
+        <p>Project maintained by <a href="https://github.com/SteBeeGizmo">SteBeeGizmo</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
